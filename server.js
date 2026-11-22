@@ -154,18 +154,61 @@ async function tutor(req, res) {
   }
   contents.push({ role: 'user', parts: [{ text: `MÔN: ${subject}\nBỘ SÁCH: ${subjects[subject]}\nKHỐI: ${grade}\nCHẾ ĐỘ: ${mode}\n\nNGUỒN THAM KHẢO NỘI BỘ (có thể rỗng):\n${sourceBlock}\n\nCÂU HỎI HỌC SINH:\n${question}\n\nHãy trả lời phù hợp với nguyên tắc gia sư. Nếu có nguồn, trích dẫn đúng tệp và mục/trang. Nếu không có nguồn, nói rõ chưa đối chiếu SGK.` }] });
 
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(MODEL)}:generateContent`;
-  const upstream = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'x-goog-api-key': API_KEY },
-    body: JSON.stringify({
-      systemInstruction: { parts: [{ text: systemRules }] },
-      contents,
-      generationConfig: { temperature: 0.35, maxOutputTokens: 1800 }
-    }),
-    signal: AbortSignal.timeout(45_000)
-  });
-  const payload = await upstream.json().catch(() => ({}));
+  const url = 
+const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(MODEL)}:generateContent`;
+
+let upstream;
+let payload = {};
+
+for (let attempt = 0; attempt < 2; attempt++) {
+  try {
+    upstream = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-goog-api-key': API_KEY
+      },
+      body: JSON.stringify({
+        systemInstruction: { parts: [{ text: systemRules }] },
+        contents,
+        generationConfig: {
+          temperature: 0.35,
+          maxOutputTokens: 1800
+        }
+      }),
+      signal: AbortSignal.timeout(45_000)
+    });
+
+    const raw = await upstream.text();
+    try {
+      payload = raw ? JSON.parse(raw) : {};
+    } catch {
+      payload = {};
+    }
+
+    const retryable = [429, 500, 502, 503, 504].includes(upstream.status);
+
+    if (retryable && attempt === 0) {
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      continue;
+    }
+
+    break;
+  } catch (error) {
+    const timedOut =
+      error?.name === 'TimeoutError' ||
+      error?.name === 'AbortError';
+
+    if (!timedOut || attempt === 1) {
+      return send(res, 502, {
+        error: `Gemini không phản hồi sau ${attempt + 1} lần thử: ${error.message || 'Timeout'}`
+      });
+    }
+
+    await new Promise(resolve => setTimeout(resolve, 2000));
+  }
+}
+ => ({}));
   if (!upstream.ok) {
     const message = payload?.error?.message || `Gemini API trả về mã ${upstream.status}.`;
     return send(res, 502, { error: `Chưa nhận được câu trả lời từ Gemini: ${message}` });
