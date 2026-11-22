@@ -154,7 +154,6 @@ async function tutor(req, res) {
   }
   contents.push({ role: 'user', parts: [{ text: `MÔN: ${subject}\nBỘ SÁCH: ${subjects[subject]}\nKHỐI: ${grade}\nCHẾ ĐỘ: ${mode}\n\nNGUỒN THAM KHẢO NỘI BỘ (có thể rỗng):\n${sourceBlock}\n\nCÂU HỎI HỌC SINH:\n${question}\n\nHãy trả lời phù hợp với nguyên tắc gia sư. Nếu có nguồn, trích dẫn đúng tệp và mục/trang. Nếu không có nguồn, nói rõ chưa đối chiếu SGK.` }] });
 
-  const url = 
 const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(MODEL)}:generateContent`;
 
 let upstream;
@@ -208,7 +207,7 @@ for (let attempt = 0; attempt < 2; attempt++) {
     await new Promise(resolve => setTimeout(resolve, 2000));
   }
 }
- => ({}));
+  
   if (!upstream.ok) {
     const message = payload?.error?.message || `Gemini API trả về mã ${upstream.status}.`;
     return send(res, 502, { error: `Chưa nhận được câu trả lời từ Gemini: ${message}` });
